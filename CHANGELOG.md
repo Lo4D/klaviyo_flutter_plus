@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+* iOS: scope foreground presentation to Klaviyo-owned pushes and join the standard `FlutterPlugin` lifecycle for `userNotificationCenter:willPresent:` / `:didReceive:` instead of claiming `UNUserNotificationCenter.delegate`. Composes cleanly with `flutter_local_notifications`, `firebase_messaging`, and host `AppDelegate` notification handlers.
+
 ## 0.2.0
 
 * Add individual set profile attributes methods, thanks @Lo4D

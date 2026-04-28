@@ -143,6 +143,14 @@ if (token != null && token.isNotEmpty) {
     }
 ```
 
+The plugin participates in the standard `FlutterPlugin` lifecycle on iOS:
+`FlutterAppDelegate` keeps the `UNUserNotificationCenter` delegate slot and
+dispatches `willPresent` / `didReceive` to every registered plugin.
+Klaviyo-owned foreground pushes are presented with `.list`/`.banner` on
+iOS 14+ (and `.alert` otherwise); other notifications are left for the host
+`AppDelegate` and other plugins (`flutter_local_notifications`,
+`firebase_messaging`, etc.) to handle in the same dispatch chain.
+
 Any users that enable/accept push notifications from your app now will be eligible to receive your custom notifications.
 
 To read more about sending push notifications, check out our additional push notification guides.
