@@ -46,34 +46,30 @@ public class KlaviyoFlutterPlugin: NSObject, FlutterPlugin,
             binaryMessenger: messenger
         )
         let instance = KlaviyoFlutterPlugin()
-
-        if #available(OSX 10.14, *) {
-            let center = UNUserNotificationCenter.current()
-            center.delegate = instance
-        }
-
         registrar.addMethodCallDelegate(instance, channel: channel)
+        registrar.addApplicationDelegate(instance)
     }
 
-    // below method will be called when the user interacts with the push notification
+    // FlutterAppDelegate dispatches userNotificationCenter:didReceive: to every
+    // registered FlutterPlugin via FlutterPluginAppLifeCycleDelegate. The
+    // convention is to handle notifications this plugin owns and stay silent
+    // (return without calling completionHandler) for ones it doesn't, letting
+    // another plugin in the chain claim them.
     public func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-
-        // If this notification is Klaviyo's notification we'll handle it
-        // else pass it on to the next push notification service to which it may belong
-        let handled = KlaviyoSDK().handle(
+        _ = KlaviyoSDK().handle(
             notificationResponse: response,
             withCompletionHandler: completionHandler
         )
-        if !handled {
-            completionHandler()
-        }
     }
 
-    // below method is called when the app receives push notifications when the app is the foreground
+    // Same plugin-lifecycle convention applies here: present banner options for
+    // Klaviyo-owned foreground pushes, return silently for everything else so
+    // other plugins (flutter_local_notifications, firebase_messaging, etc.) and
+    // the host AppDelegate can decide.
     public func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
@@ -81,6 +77,7 @@ public class KlaviyoFlutterPlugin: NSObject, FlutterPlugin,
             UNNotificationPresentationOptions
         ) -> Void
     ) {
+        guard notification.isKlaviyoNotification else { return }
         var options: UNNotificationPresentationOptions = [.alert]
         if #available(iOS 14.0, *) {
             options = [.list, .banner]
@@ -436,6 +433,21 @@ public class KlaviyoFlutterPlugin: NSObject, FlutterPlugin,
 extension String {
     var toDouble: Double {
         return Double(self) ?? 0.0
+    }
+}
+
+extension UNNotification {
+    // Mirrors KlaviyoSwift's internal predicate for Klaviyo-owned pushes
+    // (the same `body._k` check used by `KlaviyoSDK().handle(notificationResponse:)`,
+    // and exposed publicly on `UNNotificationResponse.isKlaviyoNotification` in
+    // newer SDK versions). Replicated locally because no SDK helper takes a
+    // `UNNotification`; swap if one is added upstream.
+    var isKlaviyoNotification: Bool {
+        guard
+            let userInfo = request.content.userInfo as? [String: Any],
+            let body = userInfo["body"] as? [String: Any]
+        else { return false }
+        return body["_k"] != nil
     }
 }
 
